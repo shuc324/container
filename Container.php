@@ -4,6 +4,8 @@ namespace Shuc324\Container;
 
 use Closure;
 use ArrayAccess;
+use ReflectionClass;
+use ReflectionParameter;
 
 class Container implements ArrayAccess
 {
@@ -11,6 +13,11 @@ class Container implements ArrayAccess
     protected $bindings;
 
     protected $instances;
+
+    protected $buildStack;
+
+    // application instance
+    protected static $instance;
 
     /**
      * 格式化
@@ -85,10 +92,78 @@ class Container implements ArrayAccess
         return $object;
     }
 
+    /**
+     * 真实生产实例
+     * @param $concrete
+     * @param array $parameters
+     * @return object
+     * @throws BindingResolutionException
+     */
     public function build($concrete, array $parameters = [])
     {
-        // @todo
-        return new \stdClass();
+        // 具象是闭包时
+        if ($concrete instanceof Closure) {
+            return $concrete($this, $parameters);
+        } else { // 具象是类名时
+            $reflect = new ReflectionClass($concrete);
+            if (!$reflect->isInstantiable()) {
+                if (!empty($this->buildStack)) {
+                    $previous = implode(', ', $this->buildStack);
+                    $message = "Target [$concrete] is not instantiable while building [$previous].";
+                } else {
+                    $message = "Target [$concrete] is not instantiable.";
+                }
+                throw new BindingResolutionException($message);
+            }
+
+            $this->buildStack[] = $concrete;
+            $constructor = $reflect->getConstructor();
+            if (is_null($constructor)) {
+                array_pop($this->buildStack);
+                return new $concrete;
+            }
+            $dependencies = $constructor->getParameters();
+            $parameters = $this->keyParametersByArgument($dependencies, $parameters);
+            $instances = $this->getDependencies($dependencies, $parameters);
+            array_pop($this->buildStack);
+            return $reflect->newInstanceArgs($instances);
+        }
+    }
+
+    protected function keyParametersByArgument(array $dependencies, array $parameters)
+    {
+        foreach ($parameters as $key => $value) {
+            if (is_numeric($key)) {
+                unset($parameters[$key]);
+                $parameters[$dependencies[$key]->name] = $value;
+            }
+        }
+        return $parameters;
+    }
+
+    protected function getDependencies(array $parameters, array $primitives = [])
+    {
+        $dependencies = [];
+        foreach ($parameters as $parameter) {
+            if (array_key_exists($parameter->name, $primitives)) {
+                $dependencies[] = $primitives[$parameter->name];
+            } else {
+                $dependencies[] = $this->resolveClass($parameter);
+            }
+        }
+        return $dependencies;
+    }
+
+    protected function resolveClass(ReflectionParameter $parameter)
+    {
+        try {
+            return $this->make($parameter->getClass()->name);
+        } catch (BindingResolutionException $e) {
+            if ($parameter->isOptional()) {
+                return $parameter->getDefaultValue();
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -118,9 +193,12 @@ class Container implements ArrayAccess
     public function offsetSet($key, $value)
     {
         if (!$value instanceof Closure) {
-            function () use ($value) {
+            function () use ($value)
+            {
                 return $value;
-            };
+            }
+
+            ;
         } else {
             $this->bind($key, $value);
         }
@@ -131,7 +209,7 @@ class Container implements ArrayAccess
         $key = $this->normalize($key);
         unset($this->bindings[$key], $this->instances[$key]);
     }
-    
+
     public function __get($key)
     {
         return $this[$key];
