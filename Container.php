@@ -12,6 +12,11 @@ class Container implements ArrayAccess
 
     protected $instances;
 
+    /**
+     * 格式化
+     * @param string $service
+     * @return string
+     */
     protected function normalize($service)
     {
         return is_string($service) ? ltrim($service, '\\') : $service;
