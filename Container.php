@@ -177,7 +177,7 @@ class Container implements ArrayAccess
         $abstract = $this->normalize($abstract);
         $concrete = $this->normalize($concrete);
 
-        $this->bindings[$abstract] = compact($concrete, $singleton);
+        $this->bindings[$abstract] = compact("concrete", "singleton");
     }
 
     public function offsetExists($key)
