@@ -169,10 +169,10 @@ class Container implements ArrayAccess
     /**
      * 绑定
      * @param string $abstract 抽象
-     * @param Closure $concrete 具象
+     * @param Closure|string $concrete 具象
      * @param bool $singleton 是否单例
      */
-    public function bind($abstract, Closure $concrete, $singleton = false)
+    public function bind($abstract, $concrete, $singleton = false)
     {
         $abstract = $this->normalize($abstract);
         $concrete = $this->normalize($concrete);
