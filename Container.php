@@ -167,6 +167,15 @@ class Container implements ArrayAccess
     }
 
     /**
+     * 设置单例
+     * @param $abstract
+     * @param null $concrete
+     */
+    public function singleton($abstract, $concrete = null) {
+        $this->bind($abstract, $concrete, true);
+    }
+
+    /**
      * 绑定
      * @param string $abstract 抽象
      * @param Closure|string $concrete 具象
