@@ -1,6 +1,7 @@
 {
     "name": "shuc324/container",
     "description": "container...",
+    "keywords": ["container", "ioc"],
     "license": "MIT",
     "authors": [
         {
